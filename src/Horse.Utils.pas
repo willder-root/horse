@@ -7,6 +7,7 @@ unit Horse.Utils;
 interface
 
 function DecodeParam(const AValue: string): string;
+function DecodeQueryParam(const AValue: string): string;
 
 implementation
 
@@ -63,6 +64,25 @@ begin
     Result := HTTPDecode(AValue);
   {$ELSE}
     Result := TNetEncoding.URL.Decode(AValue);
+  {$ENDIF}
+end;
+
+{ Query-string decoding (application/x-www-form-urlencoded): '+' means space
+  and %2B means a literal '+'. PlusAsSpaces (HTTPDecode on FPC) does both. Route params must keep
+  using DecodeParam, where '+' is a literal character. }
+function DecodeQueryParam(const AValue: string): string;
+begin
+  if (Pos('%', AValue) = 0) and (Pos('+', AValue) = 0) then
+    Exit(AValue);
+
+  { Malformed %XX is kept as-is, like DecodeParam. }
+  if HasInvalidPercentEncoding(AValue) then
+    Exit(AValue);
+
+  {$IF DEFINED(FPC)}
+    Result := HTTPDecode(AValue);
+  {$ELSE}
+    Result := TNetEncoding.URL.Decode(AValue, [TURLEncoding.TDecodeOption.PlusAsSpaces]);
   {$ENDIF}
 end;
 
